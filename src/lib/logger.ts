@@ -31,7 +31,9 @@ export type PageName =
   | 'technician-messages'
   | 'technician-location'
   | 'technician-settings'
-  | 'login';
+  | 'login'
+  | 'register'
+  | 'syncCloudTasks';
 
 const LOG_STORAGE_KEY = 'fsm_error_logs';
 

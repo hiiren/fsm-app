@@ -105,6 +105,17 @@ export default function LoginPage() {
             </Button>
           </form>
 
+          <div className="mt-4 text-center text-sm">
+            <span className="text-muted-foreground">Are you a new technician? </span>
+            <button
+              type="button"
+              className="font-medium text-primary hover:underline hover:text-primary/80"
+              onClick={() => navigate('/register')}
+            >
+              Sign up here
+            </button>
+          </div>
+
           <div className="mt-6 p-4 rounded-lg bg-muted/50 border border-dashed">
             <p className="text-sm font-medium text-center mb-2">Demo Credentials</p>
             <div className="text-xs text-muted-foreground space-y-2">

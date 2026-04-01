@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore } from './stores'
 import LoginPage from './pages/Login'
+import RegisterPage from './pages/Register'
 import { AdminLayout } from './components/admin/AdminLayout'
 import { TechnicianLayout } from './components/technician/TechnicianLayout'
 import { PageWrapper } from './lib/pageWrapper'
@@ -38,6 +39,7 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<PageWrapper page="login"><LoginPage /></PageWrapper>} />
+        <Route path="/register" element={<PageWrapper page="register"><RegisterPage /></PageWrapper>} />
         
         <Route
           path="/admin"

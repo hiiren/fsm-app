@@ -68,6 +68,7 @@ export default function TechniciansPage() {
     skills: [] as string[],
     serviceZone: '',
   })
+  const [viewDoc, setViewDoc] = useState<{title: string, content: string} | null>(null)
 
   const filteredTechnicians = technicians.filter(tech => {
     const matchesSearch = tech.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -99,6 +100,15 @@ export default function TechniciansPage() {
       title: 'Documents Verified',
       message: `${tech?.fullName}'s documents have been verified`,
     })
+    if (tech) {
+      useAppStore.getState().sendWhatsAppMessage({
+        clientId: `tech-${tech.id}`,
+        clientName: tech.fullName,
+        content: `Congratulations ${tech.fullName}! Your documents have been verified and your profile is now active. You can start accepting tasks.`,
+        type: 'template',
+        templateName: 'tech_approved',
+      });
+    }
   }
 
   const handleRejectDocuments = (techId: string) => {
@@ -114,6 +124,24 @@ export default function TechniciansPage() {
       type: 'document',
       title: 'Documents Rejected',
       message: `${tech?.fullName}'s documents have been rejected`,
+    })
+    if (tech) {
+      useAppStore.getState().sendWhatsAppMessage({
+        clientId: `tech-${tech.id}`,
+        clientName: tech.fullName,
+        content: `Hi ${tech.fullName}, your document verification has failed. Please contact admin to resolve this issue.`,
+        type: 'template',
+        templateName: 'tech_rejected',
+      });
+    }
+  }
+
+  const handleViewDocument = (title: string, fileName: string) => {
+    setViewDoc({
+      title,
+      // In a real app, this would be the actual S3/CDN URL. 
+      // Using a placeholder image for demonstration of the viewing flow.
+      content: fileName.endsWith('.pdf') ? 'pdf' : `https://images.unsplash.com/photo-1621252171032-efdb25b306bc?w=600&h=400&fit=crop`
     })
   }
 
@@ -200,6 +228,33 @@ export default function TechniciansPage() {
               <Button variant="outline" onClick={() => setShowAddDialog(false)}>Cancel</Button>
               <Button onClick={() => setShowAddDialog(false)}>Send Invitation</Button>
             </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={!!viewDoc} onOpenChange={(open) => !open && setViewDoc(null)}>
+          <DialogContent className="sm:max-w-[700px]">
+            <DialogHeader>
+              <DialogTitle>{viewDoc?.title}</DialogTitle>
+              <DialogDescription>Document preview (Simulated)</DialogDescription>
+            </DialogHeader>
+            <div className="flex items-center justify-center p-4 bg-muted/30 rounded-lg border min-h-[400px]">
+              {viewDoc?.content === 'pdf' ? (
+                <div className="text-center space-y-4">
+                  <div className="mx-auto w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center">
+                    <span className="font-bold">PDF</span>
+                  </div>
+                  <p className="font-medium">Document Preview</p>
+                  <Button variant="outline">Download PDF</Button>
+                </div>
+              ) : (
+                <div className="w-[400px] h-[250px] bg-slate-100 dark:bg-slate-800 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700 flex flex-col items-center justify-center p-6 shadow-inner relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-full h-4 bg-blue-500/20" />
+                  <Award className="w-16 h-16 text-slate-400 mb-4 opacity-50" />
+                  <p className="text-lg font-medium text-slate-600 dark:text-slate-300">Simulated {viewDoc?.title}</p>
+                  <p className="text-sm text-slate-500 mt-2">No image file stored in frontend state.</p>
+                </div>
+              )}
+            </div>
           </DialogContent>
         </Dialog>
       </div>
@@ -474,7 +529,7 @@ export default function TechniciansPage() {
                             <Badge className={getStatusColor(selectedTech.documents.verificationStatus)}>
                               {selectedTech.documents.verificationStatus}
                             </Badge>
-                            <Button variant="ghost" size="sm">
+                            <Button variant="ghost" size="sm" onClick={() => handleViewDocument('Aadhaar Front', selectedTech.documents.aadhaarFront!)}>
                               <Eye className="h-4 w-4" />
                             </Button>
                           </>
@@ -499,7 +554,7 @@ export default function TechniciansPage() {
                             <Badge className={getStatusColor(selectedTech.documents.verificationStatus)}>
                               {selectedTech.documents.verificationStatus}
                             </Badge>
-                            <Button variant="ghost" size="sm">
+                            <Button variant="ghost" size="sm" onClick={() => handleViewDocument('Aadhaar Back', selectedTech.documents.aadhaarBack!)}>
                               <Eye className="h-4 w-4" />
                             </Button>
                           </>
@@ -524,7 +579,7 @@ export default function TechniciansPage() {
                             <Badge className={getStatusColor(selectedTech.documents.verificationStatus)}>
                               {selectedTech.documents.verificationStatus}
                             </Badge>
-                            <Button variant="ghost" size="sm">
+                            <Button variant="ghost" size="sm" onClick={() => handleViewDocument('PAN Card', selectedTech.documents.pan!)}>
                               <Eye className="h-4 w-4" />
                             </Button>
                           </>
@@ -549,7 +604,7 @@ export default function TechniciansPage() {
                             <Badge className={getStatusColor(selectedTech.documents.verificationStatus)}>
                               {selectedTech.documents.verificationStatus}
                             </Badge>
-                            <Button variant="ghost" size="sm">
+                            <Button variant="ghost" size="sm" onClick={() => handleViewDocument('Driving License', selectedTech.documents.drivingLicense!)}>
                               <Eye className="h-4 w-4" />
                             </Button>
                           </>
@@ -560,20 +615,21 @@ export default function TechniciansPage() {
                     </div>
                   </div>
                   
-                  {selectedTech.status === 'pending_verification' && (
-                    <div className="mt-4 flex gap-2">
-                      <Button className="flex-1 bg-green-600 hover:bg-green-700" onClick={() => handleVerifyDocuments(selectedTech.id)}>
-                        <CheckCircle2 className="mr-2 h-4 w-4" /> Verify Documents
-                      </Button>
-                      <Button variant="outline" className="flex-1 text-destructive border-destructive hover:bg-destructive/10" onClick={() => handleRejectDocuments(selectedTech.id)}>
-                        <AlertTriangle className="mr-2 h-4 w-4" /> Reject
-                      </Button>
-                    </div>
-                  )}
                 </TabsContent>
               </Tabs>
 
-              <div className="flex gap-2">
+              {selectedTech.status === 'pending_verification' && (
+                <div className="flex gap-2 mt-4">
+                  <Button className="flex-1 bg-green-600 hover:bg-green-700" onClick={() => handleVerifyDocuments(selectedTech.id)}>
+                    <CheckCircle2 className="mr-2 h-4 w-4" /> Verify Documents
+                  </Button>
+                  <Button variant="outline" className="flex-1 text-destructive border-destructive hover:bg-destructive/10" onClick={() => handleRejectDocuments(selectedTech.id)}>
+                    <AlertTriangle className="mr-2 h-4 w-4" /> Reject
+                  </Button>
+                </div>
+              )}
+
+              <div className="flex gap-2 mt-4">
                 <Button variant="outline" className="flex-1">Edit Profile</Button>
                 <Button className="flex-1">View Schedule</Button>
               </div>

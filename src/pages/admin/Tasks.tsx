@@ -140,6 +140,8 @@ export default function TasksPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [priorityFilter, setPriorityFilter] = useState<string>('all')
   const [technicianFilter, setTechnicianFilter] = useState<string>('all')
+  const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [zoneFilter, setZoneFilter] = useState<string>('all')
   const [dateFilter, setDateFilter] = useState<string>('all')
   const [selectedTask, setSelectedTask] = useState<string | null>(null)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
@@ -214,7 +216,19 @@ export default function TasksPage() {
       task.clientName.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesPriority = priorityFilter === 'all' || task.priority === priorityFilter
     const matchesTechnician = technicianFilter === 'all' || task.assignedTechnicianId === technicianFilter
-    return matchesSearch && matchesPriority && matchesTechnician
+    const matchesStatus = statusFilter === 'all' || task.status === statusFilter
+    const matchesDate = dateFilter === 'all' ? true : 
+      dateFilter === 'today' ? task.scheduledDate === new Date().toISOString().split('T')[0] : true
+    
+    // Zone check: In this mock, zone is on technician instead of task location, but ideally we match task location. 
+    // We'll skip deep zone check or assume matchesZone is always true if not checking tech zone.
+    let matchesZone = true;
+    if (zoneFilter !== 'all') {
+      const tech = technicians.find(t => t.id === task.assignedTechnicianId);
+      matchesZone = tech ? tech.serviceZone === zoneFilter : false;
+    }
+
+    return matchesSearch && matchesPriority && matchesTechnician && matchesStatus && matchesDate && matchesZone;
   })
 
   const selectedTaskData = selectedTask ? tasks.find(t => t.id === selectedTask) : null
@@ -437,6 +451,19 @@ export default function TasksPage() {
               ))}
             </SelectContent>
           </Select>
+          <Select onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[150px]">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Statuses</SelectItem>
+              {statuses.map((s) => (
+                <SelectItem key={s} value={s}>{s.replace('_', ' ').charAt(0).toUpperCase() + s.slice(1).replace('_', ' ')}</SelectItem>
+              ))}
+              <SelectItem value="new">New</SelectItem>
+              <SelectItem value="assigned">Assigned</SelectItem>
+            </SelectContent>
+          </Select>
           <Select onValueChange={setTechnicianFilter}>
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="Technician" />
@@ -586,7 +613,7 @@ export default function TasksPage() {
                     <p className="mt-1 text-sm text-muted-foreground">{selectedTaskData.description}</p>
                   </div>
 
-                  {selectedTech && (
+                  {selectedTech ? (
                     <div className="rounded-lg border p-3">
                       <p className="text-sm font-medium mb-2">Assigned Technician</p>
                       <div className="flex items-center gap-3">
@@ -599,6 +626,20 @@ export default function TasksPage() {
                           <p className="text-xs text-muted-foreground">{selectedTech.serviceZone}</p>
                         </div>
                       </div>
+                    </div>
+                  ) : (
+                    <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+                      <p className="text-sm font-medium text-amber-800 mb-2">Assign Technician</p>
+                      <Select onValueChange={(techId) => useAppStore.getState().assignTechnician(selectedTaskData.id, techId)}>
+                        <SelectTrigger className="bg-white">
+                          <SelectValue placeholder="Select Technician" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {technicians.filter(t => t.status === 'active').map((tech) => (
+                            <SelectItem key={tech.id} value={tech.id}>{tech.fullName}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   )}
                 </TabsContent>

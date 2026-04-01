@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { User, Technician, Task, ClientRequirement, Feedback, Notification, AuditLog, MaterialRequest, WhatsAppMessage, Holiday, Leave, ErrorLog } from '../types';
+import type { User, Technician, Task, ClientRequirement, Feedback, Notification, AuditLog, MaterialRequest, WhatsAppMessage, Holiday, Leave, ErrorLog, TaskStatus } from '../types';
 import { generateId } from '../lib/utils';
 import { logError, logInfo, setUserContext, clearUserContext } from '../lib/logger';
 
@@ -91,7 +91,8 @@ interface AppState {
   
   addTask: (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'timeline' | 'materials' | 'timeExtensions'>) => void;
   updateTask: (id: string, data: Partial<Task>) => void;
-  updateTaskStatus: (id: string, status: Task['status'], note?: string) => void;
+  updateTaskStatus: (id: string, status: TaskStatus, note?: string) => void;
+  assignTechnician: (taskId: string, technicianId: string) => void;
   deleteTask: (id: string) => void;
   
   addRequirement: (req: Omit<ClientRequirement, 'id' | 'createdAt'>) => void;
@@ -109,6 +110,9 @@ interface AppState {
   updateMaterialRequest: (id: string, data: Partial<MaterialRequest>) => void;
   
   sendWhatsAppMessage: (msg: Omit<WhatsAppMessage, 'id' | 'timestamp' | 'status'>) => void;
+  
+  simulateShopifyWebhook: () => void;
+  syncCloudTasks: () => Promise<void>;
   
   logError: (error: Omit<ErrorLog, 'id' | 'timestamp'>) => void;
   clearErrorLogs: () => void;
@@ -660,6 +664,29 @@ export const useAppStore = create<AppState>()(
         }));
       },
 
+      assignTechnician: (taskId, technicianId) => {
+        const state = get();
+        const tech = state.technicians.find(t => t.id === technicianId);
+        const task = state.tasks.find(t => t.id === taskId);
+        
+        if (tech && task) {
+          state.updateTask(taskId, { assignedTechnicianId: technicianId, status: 'assigned' });
+          state.updateTaskStatus(taskId, 'assigned', `Assigned to ${tech.fullName}`);
+          state.addNotification({
+            type: 'task',
+            title: 'Task Assigned',
+            message: `${task.title} has been assigned to ${tech.fullName}`,
+          });
+          state.sendWhatsAppMessage({
+            clientId: `tech-${tech.id}`,
+            clientName: tech.fullName,
+            content: `New Task Assigned: ${task.title} at ${task.location.address}. Scheduled for ${task.scheduledDate} ${task.scheduledTime}.`,
+            type: 'template',
+            templateName: 'task_assignment',
+          });
+        }
+      },
+
       deleteTask: (id) => {
         set((state) => ({ tasks: state.tasks.filter((t) => t.id !== id) }));
       },
@@ -755,6 +782,124 @@ export const useAppStore = create<AppState>()(
           timestamp: new Date().toISOString(),
         };
         set((state) => ({ whatsappMessages: [...state.whatsappMessages, newMsg] }));
+      },
+
+      simulateShopifyWebhook: () => {
+        const orderId = `SHOP-${Math.floor(Math.random() * 10000)}`;
+        const newTask: Task = {
+          id: generateId(),
+          title: `Shopify Booking - ${orderId}`,
+          description: 'AC Servicing and Filter Replacement',
+          clientName: 'Rahul Verma',
+          clientEmail: 'rahul.v@email.com',
+          clientPhone: '+91 98765 00001',
+          location: {
+            address: '101, Horizon Towers',
+            city: 'Mumbai',
+            pinCode: '400050',
+            lat: 19.054,
+            lng: 72.840,
+          },
+          category: 'AC Repair',
+          priority: 'medium',
+          status: 'new',
+          scheduledDate: new Date(Date.now() + 86400000).toISOString().split('T')[0],
+          scheduledTime: '10:00',
+          estimatedDuration: 60,
+          assignedTechnicianId: '',
+          timeline: [{ status: 'new', timestamp: new Date().toISOString() }],
+          materials: [],
+          timeExtensions: [],
+          shopifyOrderId: orderId,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        
+        set((state) => {
+          const newNotif: Notification = {
+            id: generateId(),
+            type: 'task',
+            title: 'New Shopify Booking',
+            message: `Order ${orderId} received for AC Repair.`,
+            read: false,
+            createdAt: new Date().toISOString(),
+          };
+          return { 
+            tasks: [newTask, ...state.tasks],
+            notifications: [newNotif, ...state.notifications]
+          };
+        });
+
+        // Also try to persist to cloud (fire-and-forget)
+        import('../services/amplifyDataService').then(({ createCloudTask }) => {
+          createCloudTask({
+            title: newTask.title,
+            description: newTask.description,
+            category: newTask.category,
+            priority: newTask.priority,
+            status: 'new',
+            shopifyOrderId: orderId,
+            clientName: newTask.clientName,
+            clientPhone: newTask.clientPhone,
+            clientEmail: newTask.clientEmail || '',
+            address: newTask.location.address,
+            city: newTask.location.city || '',
+            pinCode: newTask.location.pinCode || '',
+            zone: 'Unassigned',
+            scheduledTimestamp: newTask.scheduledDate,
+          }).catch(console.error);
+        }).catch(() => {});
+      },
+
+      syncCloudTasks: async () => {
+        try {
+          const { fetchCloudTasks } = await import('../services/amplifyDataService');
+          const cloudTasks = await fetchCloudTasks();
+          if (cloudTasks.length === 0) return;
+
+          const existingIds = new Set(get().tasks.map(t => t.id));
+          const existingShopifyIds = new Set(get().tasks.map(t => t.shopifyOrderId).filter(Boolean));
+
+          const newTasks: Task[] = cloudTasks
+            .filter(ct => !existingIds.has(ct.id) && !existingShopifyIds.has(ct.shopifyOrderId))
+            .map(ct => ({
+              id: ct.id,
+              title: ct.title || 'Untitled Task',
+              description: ct.description || '',
+              clientName: ct.clientName || 'Unknown',
+              clientEmail: ct.clientEmail || '',
+              clientPhone: ct.clientPhone || '',
+              location: {
+                address: ct.address || '',
+                city: ct.city || '',
+                pinCode: ct.pinCode || '',
+                lat: 0,
+                lng: 0,
+              },
+              category: ct.category || 'General',
+              priority: (ct.priority || 'medium') as any,
+              status: (ct.status || 'new') as any,
+              scheduledDate: ct.scheduledTimestamp?.split('T')[0] || new Date().toISOString().split('T')[0],
+              scheduledTime: '10:00',
+              estimatedDuration: 60,
+              assignedTechnicianId: ct.assignedTechnicianId || '',
+              timeline: [{ status: ct.status || 'new', timestamp: ct.createdAt || new Date().toISOString() }],
+              materials: [],
+              timeExtensions: [],
+              shopifyOrderId: ct.shopifyOrderId || '',
+              createdAt: ct.createdAt || new Date().toISOString(),
+              updatedAt: ct.updatedAt || new Date().toISOString(),
+            }));
+
+          if (newTasks.length > 0) {
+            logInfo('syncCloudTasks', `Synced ${newTasks.length} new tasks from cloud`);
+            set((state) => ({
+              tasks: [...newTasks, ...state.tasks],
+            }));
+          }
+        } catch (err) {
+          console.warn('[SyncCloudTasks] Failed to sync:', err);
+        }
       },
 
       logError: (error) => {

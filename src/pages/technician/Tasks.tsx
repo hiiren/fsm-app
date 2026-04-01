@@ -16,7 +16,7 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 
 export default function TechnicianTasksPage() {
-  const { tasks, updateTaskStatus, addNotification } = useAppStore()
+  const { tasks, technicians, updateTaskStatus, addNotification } = useAppStore()
   const { user } = useAuthStore()
   const techId = 'tech-001'
   const myTasks = tasks.filter(t => t.assignedTechnicianId === techId)
@@ -34,6 +34,20 @@ export default function TechnicianTasksPage() {
       title: 'Task Accepted',
       message: `You have accepted the task`,
     })
+    
+    // Auto-message to client
+    const task = tasks.find(t => t.id === taskId);
+    const tech = user ? technicians.find(t => t.userId === user.id) || technicians[0] : technicians[0];
+    
+    if (task && tech) {
+      useAppStore.getState().sendWhatsAppMessage({
+        clientId: `client-${task.clientPhone}`,
+        clientName: task.clientName,
+        content: `Your task has been accepted by ${tech.fullName} (ID Ref: ${tech.documents.aadhaarFront ? 'Verified' : 'Pending'}). Scheduled for ${task.scheduledDate} at ${task.scheduledTime}. Technician Contact: ${tech.mobile}`,
+        type: 'template',
+        templateName: 'task_accepted',
+      });
+    }
   }
 
   const handleDeclineClick = (taskId: string) => {
@@ -193,7 +207,7 @@ export default function TechnicianTasksPage() {
                 </div>
 
                 <div className="flex gap-2 mt-4">
-                  {task.status === 'pending' && (
+                  {(task.status === 'pending' || task.status === 'assigned' || task.status === 'new') && (
                     <>
                       <Button className="flex-1" onClick={() => handleAcceptTask(task.id)}>
                         <Check className="mr-2 h-4 w-4" /> Accept

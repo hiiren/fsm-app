@@ -50,13 +50,15 @@ export interface Technician {
   createdAt: string;
 }
 
-export type TaskStatus = 'pending' | 'accepted' | 'in_progress' | 'completed' | 'cancelled' | 'overdue';
+export type TaskStatus = 'new' | 'pending' | 'assigned' | 'accepted' | 'in_progress' | 'completed' | 'cancelled' | 'overdue';
 export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
 
 export interface TaskLocation {
   address: string;
   lat: number;
   lng: number;
+  city?: string;
+  pinCode?: string;
 }
 
 export interface TimelineEntry {
@@ -108,6 +110,7 @@ export interface Task {
   title: string;
   description: string;
   clientName: string;
+  clientEmail?: string;
   clientPhone: string;
   location: TaskLocation;
   category: string;
@@ -121,6 +124,7 @@ export interface Task {
   materials: MaterialRequest[];
   closure?: TaskClosure;
   timeExtensions: TimeExtension[];
+  shopifyOrderId?: string;
   createdAt: string;
   updatedAt: string;
 }

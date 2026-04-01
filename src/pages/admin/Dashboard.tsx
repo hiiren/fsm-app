@@ -266,6 +266,9 @@ export default function DashboardPage() {
           <p className="text-muted-foreground">Welcome back! Here's what's happening today.</p>
         </div>
         <div className="flex gap-3">
+          <Button variant="secondary" onClick={() => useAppStore.getState().simulateShopifyWebhook()}>
+            Simulate Shopify Booking
+          </Button>
           <Dialog open={showDownloadDialog} onOpenChange={setShowDownloadDialog}>
             <DialogTrigger asChild>
               <Button variant="outline">

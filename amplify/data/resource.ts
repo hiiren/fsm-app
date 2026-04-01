@@ -7,11 +7,27 @@ specifies that any unauthenticated user can "create", "read", "update",
 and "delete" any "Todo" records.
 =========================================================================*/
 const schema = a.schema({
-  Todo: a
+  Task: a
     .model({
-      content: a.string(),
+      title: a.string(),
+      description: a.string(),
+      category: a.string(),
+      priority: a.string(), // low, medium, high
+      status: a.string(), // pending, assigned, new, etc.
+      shopifyOrderId: a.string(),
+      clientName: a.string(),
+      clientPhone: a.string(),
+      clientEmail: a.string(),
+      address: a.string(),
+      city: a.string(),
+      pinCode: a.string(),
+      zone: a.string(),
+      scheduledTimestamp: a.string(),
+      assignedTechnicianId: a.string(),
     })
-    .authorization((allow) => [allow.guest()]),
+    .authorization((allow) => [
+      allow.guest(), // allow unauthenticated access for simplicity during dev
+    ]),
 });
 
 export type Schema = ClientSchema<typeof schema>;
