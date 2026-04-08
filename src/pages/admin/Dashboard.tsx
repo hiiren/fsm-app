@@ -260,15 +260,12 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Dashboard</h1>
-          <p className="text-muted-foreground">Welcome back! Here's what's happening today.</p>
+          <h1 className="text-2xl sm:text-3xl font-bold">Dashboard</h1>
+          <p className="text-muted-foreground text-sm sm:text-base">Welcome back! Here's what's happening today.</p>
         </div>
-        <div className="flex gap-3">
-          <Button variant="secondary" onClick={() => useAppStore.getState().simulateShopifyWebhook()}>
-            Simulate Shopify Booking
-          </Button>
+        <div className="flex gap-2 sm:gap-3 flex-wrap">
           <Dialog open={showDownloadDialog} onOpenChange={setShowDownloadDialog}>
             <DialogTrigger asChild>
               <Button variant="outline">

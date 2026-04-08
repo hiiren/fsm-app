@@ -139,9 +139,8 @@ export default function TechniciansPage() {
   const handleViewDocument = (title: string, fileName: string) => {
     setViewDoc({
       title,
-      // In a real app, this would be the actual S3/CDN URL. 
-      // Using a placeholder image for demonstration of the viewing flow.
-      content: fileName.endsWith('.pdf') ? 'pdf' : `https://images.unsplash.com/photo-1621252171032-efdb25b306bc?w=600&h=400&fit=crop`
+      // In production, this would load the actual S3/CDN URL for the uploaded document.
+      content: fileName.endsWith('.pdf') ? 'pdf' : 'document-preview'
     })
   }
 

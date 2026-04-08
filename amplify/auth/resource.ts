@@ -8,4 +8,11 @@ export const auth = defineAuth({
   loginWith: {
     email: true,
   },
+  userAttributes: {
+    /** Custom role attribute — used for role-based access (admin, technician, etc.) */
+    'custom:role': {
+      dataType: 'String',
+      mutable: true,
+    },
+  },
 });

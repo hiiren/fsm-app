@@ -7,7 +7,7 @@ import { logError, logInfo, setUserContext, clearUserContext } from '../lib/logg
 interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => boolean;
+  login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   setUser: (user: User | null) => void;
 }
@@ -17,44 +17,43 @@ export const useAuthStore = create<AuthState>()(
     (set) => ({
       user: null,
       isAuthenticated: false,
-      login: (email, password) => {
-        if (email === 'admin@fsm.com' && password === 'admin123') {
-          const user: User = {
-            id: 'admin-001',
-            email,
-            password,
-            role: 'admin',
-            name: 'Admin User',
-            createdAt: new Date().toISOString(),
-          };
-          set({ user, isAuthenticated: true });
-          setUserContext(user.id, user.role);
-          logInfo('login', `Admin login successful: ${email}`, { userId: user.id });
-          return true;
+      login: async (email, password) => {
+        // Cognito auth is handled in authService.ts — this is called after successful Cognito signIn
+        // This fallback exists only for cases where the Login page directly calls login()
+        try {
+          const { cognitoSignIn, fetchCurrentUser } = await import('../services/authService');
+          const result = await cognitoSignIn(email, password);
+          
+          if (result.success) {
+            const userInfo = await fetchCurrentUser();
+            if (userInfo) {
+              const user: User = {
+                id: userInfo.userId,
+                email: userInfo.email,
+                password: '',
+                role: userInfo.role,
+                name: userInfo.name,
+                createdAt: new Date().toISOString(),
+              };
+              set({ user, isAuthenticated: true });
+              setUserContext(user.id, user.role);
+              logInfo('login', `Login successful: ${email}`, { userId: user.id });
+              return true;
+            }
+          }
+          logError('login', `Login failed: ${result.message}`, { email });
+          return false;
+        } catch (err: any) {
+          logError('login', `Login error: ${err?.message}`, { email });
+          return false;
         }
-        if (email === 'tech@fsm.com' && password === 'tech123') {
-          const user: User = {
-            id: 'tech-001',
-            email,
-            password,
-            role: 'technician',
-            name: 'Rajesh Kumar',
-            phone: '+91 98765 43210',
-            profilePhoto: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face',
-            address: 'Flat 201, Green Park CHS, Andheri East, Mumbai 400069',
-            aadhaarNumber: '1234 5678 9012',
-            panNumber: 'ABCDE1234F',
-            createdAt: new Date().toISOString(),
-          };
-          set({ user, isAuthenticated: true });
-          setUserContext(user.id, user.role);
-          logInfo('login', `Technician login successful: ${email}`, { userId: user.id });
-          return true;
-        }
-        logError('login', `Login failed: invalid credentials for ${email}`, { email });
-        return false;
       },
       logout: () => {
+        // Sign out from Cognito (fire-and-forget)
+        import('../services/authService').then(({ cognitoSignOut }) => {
+          cognitoSignOut().catch(console.error);
+        }).catch(() => {});
+        
         clearUserContext();
         logInfo('login', 'User logged out');
         set({ user: null, isAuthenticated: false });
@@ -111,500 +110,26 @@ interface AppState {
   
   sendWhatsAppMessage: (msg: Omit<WhatsAppMessage, 'id' | 'timestamp' | 'status'>) => void;
   
-  simulateShopifyWebhook: () => void;
   syncCloudTasks: () => Promise<void>;
   
   logError: (error: Omit<ErrorLog, 'id' | 'timestamp'>) => void;
   clearErrorLogs: () => void;
 }
 
-const initialTechnicians: Technician[] = [
-  {
-    id: 'tech-001',
-    userId: 'user-tech-001',
-    fullName: 'Rajesh Kumar',
-    mobile: '+91 98765 43210',
-    email: 'rajesh.kumar@email.com',
-    profilePhoto: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face',
-    skills: ['Electrical', 'AC Repair'],
-    serviceZone: 'North Mumbai',
-    status: 'active',
-    rating: 4.8,
-    documents: { verificationStatus: 'verified' },
-    stats: { totalTasks: 156, completedTasks: 152, avgCompletionTime: 45, onTimeRate: 94 },
-    currentLocation: { lat: 19.076, lng: 72.877 },
-    createdAt: '2024-01-15T10:00:00Z',
-  },
-  {
-    id: 'tech-002',
-    userId: 'user-tech-002',
-    fullName: 'Priya Sharma',
-    mobile: '+91 98765 43211',
-    email: 'priya.sharma@email.com',
-    profilePhoto: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&h=150&fit=crop&crop=face',
-    skills: ['Plumbing', 'Appliance Repair'],
-    serviceZone: 'South Mumbai',
-    status: 'active',
-    rating: 4.6,
-    documents: { verificationStatus: 'verified' },
-    stats: { totalTasks: 134, completedTasks: 128, avgCompletionTime: 52, onTimeRate: 89 },
-    currentLocation: { lat: 18.921, lng: 72.833 },
-    createdAt: '2024-02-20T10:00:00Z',
-  },
-  {
-    id: 'tech-003',
-    userId: 'user-tech-003',
-    fullName: 'Amit Patel',
-    mobile: '+91 98765 43212',
-    email: 'amit.patel@email.com',
-    profilePhoto: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop&crop=face',
-    skills: ['Electrical', 'General'],
-    serviceZone: 'Central Mumbai',
-    status: 'active',
-    rating: 4.9,
-    documents: { verificationStatus: 'verified' },
-    stats: { totalTasks: 178, completedTasks: 175, avgCompletionTime: 38, onTimeRate: 97 },
-    currentLocation: { lat: 19.001, lng: 72.850 },
-    createdAt: '2024-01-10T10:00:00Z',
-  },
-  {
-    id: 'tech-004',
-    userId: 'user-tech-004',
-    fullName: 'Sneha Reddy',
-    mobile: '+91 98765 43213',
-    email: 'sneha.reddy@email.com',
-    profilePhoto: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop&crop=face',
-    skills: ['AC Repair', 'Appliance Repair'],
-    serviceZone: 'West Mumbai',
-    status: 'pending_verification',
-    rating: 0,
-    documents: { aadhaarFront: 'aadhaar-front.jpg', aadhaarBack: 'aadhaar-back.jpg', verificationStatus: 'pending' },
-    stats: { totalTasks: 0, completedTasks: 0, avgCompletionTime: 0, onTimeRate: 0 },
-    createdAt: '2024-03-25T10:00:00Z',
-  },
-  {
-    id: 'tech-005',
-    userId: 'user-tech-005',
-    fullName: 'Vikram Singh',
-    mobile: '+91 98765 43214',
-    email: 'vikram.singh@email.com',
-    profilePhoto: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face',
-    skills: ['Plumbing', 'Electrical', 'General'],
-    serviceZone: 'East Mumbai',
-    status: 'active',
-    rating: 4.5,
-    documents: { verificationStatus: 'verified' },
-    stats: { totalTasks: 98, completedTasks: 94, avgCompletionTime: 48, onTimeRate: 91 },
-    currentLocation: { lat: 19.045, lng: 72.890 },
-    createdAt: '2024-02-05T10:00:00Z',
-  },
-];
-
-const today = new Date().toISOString().split('T')[0];
-
-const initialTasks: Task[] = [
-  {
-    id: 'task-001',
-    title: 'AC Not Cooling - Room 101',
-    description: 'Split AC unit in conference room not cooling properly. Customer reports warm air blowing.',
-    clientName: 'Tech Corp Solutions',
-    clientPhone: '+91 22 1234 5678',
-    location: { address: '101, Tech Park, Andheri East, Mumbai 400069', lat: 19.113, lng: 72.869 },
-    category: 'AC Repair',
-    priority: 'high',
-    status: 'in_progress',
-    scheduledDate: today,
-    scheduledTime: '10:00',
-    estimatedDuration: 60,
-    assignedTechnicianId: 'tech-001',
-    timeline: [
-      { status: 'pending', timestamp: new Date(Date.now() - 3600000 * 3).toISOString() },
-      { status: 'accepted', timestamp: new Date(Date.now() - 3600000 * 2.5).toISOString() },
-      { status: 'in_progress', timestamp: new Date(Date.now() - 1800000).toISOString(), note: 'Technician arrived at location' },
-    ],
-    materials: [],
-    timeExtensions: [],
-    createdAt: new Date(Date.now() - 3600000 * 4).toISOString(),
-    updatedAt: new Date(Date.now() - 1800000).toISOString(),
-  },
-  {
-    id: 'task-002',
-    title: 'Water Leakage in Bathroom',
-    description: 'Tap in master bathroom leaking continuously. Water dripping under sink.',
-    clientName: 'John Dsouza',
-    clientPhone: '+91 22 9876 5432',
-    location: { address: 'Flat 502, Sunrise Apartments, Bandra West, Mumbai 400050', lat: 19.054, lng: 72.840 },
-    category: 'Plumbing',
-    priority: 'medium',
-    status: 'accepted',
-    scheduledDate: today,
-    scheduledTime: '14:00',
-    estimatedDuration: 60,
-    assignedTechnicianId: 'tech-002',
-    timeline: [
-      { status: 'pending', timestamp: new Date(Date.now() - 7200000).toISOString() },
-      { status: 'accepted', timestamp: new Date(Date.now() - 3600000).toISOString() },
-    ],
-    materials: [],
-    timeExtensions: [],
-    createdAt: new Date(Date.now() - 7200000).toISOString(),
-    updatedAt: new Date(Date.now() - 3600000).toISOString(),
-  },
-  {
-    id: 'task-003',
-    title: 'Wiring Issue - Office Floor 3',
-    description: 'Multiple power outlets not working on floor 3. Possible wiring fault.',
-    clientName: 'Global Services Ltd',
-    clientPhone: '+91 22 5555 6666',
-    location: { address: 'Floor 3, Business Center, Worli, Mumbai 400018', lat: 18.998, lng: 72.818 },
-    category: 'Electrical',
-    priority: 'urgent',
-    status: 'pending',
-    scheduledDate: today,
-    scheduledTime: '16:00',
-    estimatedDuration: 90,
-    assignedTechnicianId: 'tech-003',
-    timeline: [
-      { status: 'pending', timestamp: new Date(Date.now() - 1800000).toISOString() },
-    ],
-    materials: [],
-    timeExtensions: [],
-    createdAt: new Date(Date.now() - 1800000).toISOString(),
-    updatedAt: new Date(Date.now() - 1800000).toISOString(),
-  },
-  {
-    id: 'task-004',
-    title: 'Refrigerator Not Working',
-    description: 'Samsung double-door fridge not cooling. Lights are on but compressor not running.',
-    clientName: 'Maria Fernandez',
-    clientPhone: '+91 98 7654 3210',
-    location: { address: 'A-12, Green Park CHS, Powai, Mumbai 400076', lat: 19.117, lng: 72.897 },
-    category: 'Appliance Repair',
-    priority: 'high',
-    status: 'completed',
-    scheduledDate: today,
-    scheduledTime: '09:00',
-    estimatedDuration: 60,
-    assignedTechnicianId: 'tech-005',
-    timeline: [
-      { status: 'pending', timestamp: new Date(Date.now() - 86400000).toISOString() },
-      { status: 'accepted', timestamp: new Date(Date.now() - 86400000 + 1800000).toISOString() },
-      { status: 'in_progress', timestamp: new Date(Date.now() - 28800000).toISOString() },
-      { status: 'completed', timestamp: new Date(Date.now() - 25200000).toISOString(), note: 'Replaced faulty compressor. Cooling restored.' },
-    ],
-    materials: [{
-      id: 'mat-001',
-      taskId: 'task-004',
-      technicianId: 'tech-005',
-      itemName: 'Compressor',
-      quantity: 1,
-      unit: 'piece',
-      estimatedCost: 8500,
-      justification: 'Original compressor faulty',
-      status: 'approved',
-      approvedQuantity: 1,
-      createdAt: new Date(Date.now() - 27000000).toISOString(),
-      resolvedAt: new Date(Date.now() - 26000000).toISOString(),
-    }],
-    closure: {
-      summary: 'Replaced the faulty compressor with a new one. Refrigerator is now cooling properly.',
-      materialsUsed: ['Compressor', 'Refrigerant gas', 'Connectors'],
-      beforePhotos: ['before-1.jpg'],
-      afterPhotos: ['after-1.jpg'],
-      clientSignature: 'signature-1.png',
-      completedAt: new Date(Date.now() - 25200000).toISOString(),
-    },
-    timeExtensions: [],
-    createdAt: new Date(Date.now() - 86400000).toISOString(),
-    updatedAt: new Date(Date.now() - 25200000).toISOString(),
-  },
-  {
-    id: 'task-005',
-    title: 'AC Installation - New Office',
-    description: 'Install 3 new split AC units in newly constructed office space.',
-    clientName: 'StartUp Hub',
-    clientPhone: '+91 22 3333 4444',
-    location: { address: 'Unit 7, Innovation Center, Malad West, Mumbai 400064', lat: 19.187, lng: 72.849 },
-    category: 'AC Repair',
-    priority: 'low',
-    status: 'pending',
-    scheduledDate: new Date(Date.now() + 86400000).toISOString().split('T')[0],
-    scheduledTime: '10:00',
-    estimatedDuration: 180,
-    assignedTechnicianId: 'tech-001',
-    timeline: [
-      { status: 'pending', timestamp: new Date(Date.now() - 3600000 * 2).toISOString() },
-    ],
-    materials: [],
-    timeExtensions: [],
-    createdAt: new Date(Date.now() - 3600000 * 2).toISOString(),
-    updatedAt: new Date(Date.now() - 3600000 * 2).toISOString(),
-  },
-  {
-    id: 'task-006',
-    title: 'Geyser Repair',
-    description: 'Water heater not heating water. Pilot light issue suspected.',
-    clientName: 'Ramesh Iyer',
-    clientPhone: '+91 98 7654 3211',
-    location: { address: 'Flat 201, Harmony Towers, Kandivali East, Mumbai 400101', lat: 19.205, lng: 72.867 },
-    category: 'Plumbing',
-    priority: 'medium',
-    status: 'overdue',
-    scheduledDate: new Date(Date.now() - 86400000).toISOString().split('T')[0],
-    scheduledTime: '11:00',
-    estimatedDuration: 60,
-    assignedTechnicianId: 'tech-002',
-    timeline: [
-      { status: 'pending', timestamp: new Date(Date.now() - 86400000 * 2).toISOString() },
-      { status: 'accepted', timestamp: new Date(Date.now() - 86400000 * 2 + 1800000).toISOString() },
-      { status: 'in_progress', timestamp: new Date(Date.now() - 86400000 + 3600000).toISOString() },
-    ],
-    materials: [{
-      id: 'mat-002',
-      taskId: 'task-006',
-      technicianId: 'tech-002',
-      itemName: 'Thermostat',
-      quantity: 1,
-      unit: 'piece',
-      estimatedCost: 1200,
-      justification: 'Faulty thermostat needs replacement',
-      status: 'pending',
-      createdAt: new Date(Date.now() - 3600000).toISOString(),
-    }],
-    timeExtensions: [],
-    createdAt: new Date(Date.now() - 86400000 * 2).toISOString(),
-    updatedAt: new Date(Date.now() - 3600000).toISOString(),
-  },
-];
-
-const initialRequirements: ClientRequirement[] = [
-  {
-    id: 'req-001',
-    clientName: 'Alpha Industries',
-    clientPhone: '+91 22 1111 2222',
-    serviceType: 'Electrical',
-    preferredDate: new Date(Date.now() + 86400000 * 2).toISOString().split('T')[0],
-    preferredTime: '14:00',
-    description: 'Need annual electrical safety inspection for our manufacturing unit.',
-    attachments: [],
-    status: 'new',
-    createdAt: new Date(Date.now() - 3600000).toISOString(),
-  },
-  {
-    id: 'req-002',
-    clientName: 'Beta Healthcare',
-    clientPhone: '+91 22 3333 4444',
-    serviceType: 'AC Repair',
-    preferredDate: new Date(Date.now() + 86400000).toISOString().split('T')[0],
-    preferredTime: '09:00',
-    description: 'Multiple AC units in patient rooms showing error codes. Need immediate attention.',
-    attachments: [],
-    status: 'new',
-    createdAt: new Date(Date.now() - 7200000).toISOString(),
-  },
-  {
-    id: 'req-003',
-    clientName: 'Gamma Solutions',
-    clientPhone: '+91 98 7654 5678',
-    serviceType: 'Plumbing',
-    preferredDate: new Date(Date.now() + 86400000 * 3).toISOString().split('T')[0],
-    preferredTime: '11:00',
-    description: 'Sewage pipe blockage in basement. Water backup observed.',
-    attachments: ['photo-1.jpg'],
-    status: 'new',
-    createdAt: new Date(Date.now() - 14400000).toISOString(),
-  },
-];
-
-const initialFeedbacks: Feedback[] = [
-  {
-    id: 'fb-001',
-    taskId: 'task-004',
-    technicianId: 'tech-005',
-    clientName: 'Maria Fernandez',
-    rating: 5,
-    comment: 'Excellent service! Very professional and completed the work quickly.',
-    sentiment: 'positive',
-    createdAt: new Date(Date.now() - 18000000).toISOString(),
-  },
-  {
-    id: 'fb-002',
-    taskId: 'task-003',
-    technicianId: 'tech-001',
-    clientName: 'Raj Mehta',
-    rating: 4,
-    comment: 'Good work but took longer than expected.',
-    sentiment: 'positive',
-    createdAt: new Date(Date.now() - 86400000 * 2).toISOString(),
-  },
-  {
-    id: 'fb-003',
-    taskId: 'task-002',
-    technicianId: 'tech-003',
-    clientName: 'Sunita Rao',
-    rating: 3,
-    comment: 'Work was done but technician was late.',
-    sentiment: 'neutral',
-    createdAt: new Date(Date.now() - 86400000 * 3).toISOString(),
-  },
-];
-
-const initialNotifications: Notification[] = [
-  {
-    id: 'notif-001',
-    type: 'task',
-    title: 'New Task Assigned',
-    message: 'AC Not Cooling - Room 101 has been assigned to Rajesh Kumar',
-    read: false,
-    createdAt: new Date(Date.now() - 3600000 * 4).toISOString(),
-  },
-  {
-    id: 'notif-002',
-    type: 'material',
-    title: 'Material Request',
-    message: 'Vikram Singh has requested approval for Thermostat',
-    read: false,
-    createdAt: new Date(Date.now() - 3600000).toISOString(),
-  },
-  {
-    id: 'notif-003',
-    type: 'alert',
-    title: 'Task Overdue',
-    message: 'Geyser Repair task is past its scheduled time',
-    read: true,
-    createdAt: new Date(Date.now() - 3600000 * 5).toISOString(),
-  },
-  {
-    id: 'notif-004',
-    type: 'requirement',
-    title: 'New Requirement',
-    message: 'Alpha Industries has submitted a new service request',
-    read: false,
-    createdAt: new Date(Date.now() - 3600000).toISOString(),
-  },
-];
-
-const initialAuditLogs: AuditLog[] = [
-  {
-    id: 'log-001',
-    actorId: 'admin-001',
-    actorName: 'Admin User',
-    actorRole: 'admin',
-    action: 'created_task',
-    entityType: 'task',
-    entityId: 'task-001',
-    after: { title: 'AC Not Cooling - Room 101', status: 'pending' },
-    timestamp: new Date(Date.now() - 3600000 * 4).toISOString(),
-  },
-  {
-    id: 'log-002',
-    actorId: 'admin-001',
-    actorName: 'Admin User',
-    actorRole: 'admin',
-    action: 'assigned_task',
-    entityType: 'task',
-    entityId: 'task-001',
-    after: { assignedTechnicianId: 'tech-001' },
-    timestamp: new Date(Date.now() - 3600000 * 4).toISOString(),
-  },
-  {
-    id: 'log-003',
-    actorId: 'tech-001',
-    actorName: 'Rajesh Kumar',
-    actorRole: 'technician',
-    action: 'accepted_task',
-    entityType: 'task',
-    entityId: 'task-001',
-    after: { status: 'accepted' },
-    timestamp: new Date(Date.now() - 3600000 * 2.5).toISOString(),
-  },
-];
-
-const initialMaterials: MaterialRequest[] = [
-  {
-    id: 'mat-001',
-    taskId: 'task-004',
-    technicianId: 'tech-005',
-    itemName: 'Compressor',
-    quantity: 1,
-    unit: 'piece',
-    estimatedCost: 8500,
-    justification: 'Original compressor faulty',
-    status: 'approved',
-    approvedQuantity: 1,
-    createdAt: new Date(Date.now() - 27000000).toISOString(),
-    resolvedAt: new Date(Date.now() - 26000000).toISOString(),
-  },
-  {
-    id: 'mat-002',
-    taskId: 'task-006',
-    technicianId: 'tech-002',
-    itemName: 'Thermostat',
-    quantity: 1,
-    unit: 'piece',
-    estimatedCost: 1200,
-    justification: 'Faulty thermostat needs replacement',
-    status: 'pending',
-    createdAt: new Date(Date.now() - 3600000).toISOString(),
-  },
-  {
-    id: 'mat-003',
-    taskId: 'task-001',
-    technicianId: 'tech-001',
-    itemName: 'Refrigerant Gas R410A',
-    quantity: 2,
-    unit: 'kg',
-    estimatedCost: 2000,
-    justification: 'Low refrigerant levels detected',
-    status: 'pending',
-    createdAt: new Date(Date.now() - 1800000).toISOString(),
-  },
-];
-
-const initialWhatsappMessages: WhatsAppMessage[] = [
-  {
-    id: 'wa-001',
-    clientId: 'client-001',
-    clientName: 'Tech Corp Solutions',
-    content: 'Your service request has been received. Technician Rajesh Kumar will visit on ' + today + ' at 10:00 AM.',
-    type: 'template',
-    templateName: 'service_confirmed',
-    status: 'delivered',
-    timestamp: new Date(Date.now() - 3600000 * 3).toISOString(),
-  },
-  {
-    id: 'wa-002',
-    clientId: 'client-001',
-    clientName: 'Tech Corp Solutions',
-    content: 'Your technician Rajesh Kumar is on the way. ETA: 15 minutes.',
-    type: 'template',
-    templateName: 'technician_en_route',
-    status: 'delivered',
-    timestamp: new Date(Date.now() - 3600000 * 2).toISOString(),
-  },
-  {
-    id: 'wa-003',
-    clientId: 'client-002',
-    clientName: 'John Dsouza',
-    content: 'Thank you for choosing our service. Your appointment is confirmed for ' + today + ' at 2:00 PM.',
-    type: 'template',
-    templateName: 'appointment_confirmed',
-    status: 'read',
-    timestamp: new Date(Date.now() - 3600000).toISOString(),
-  },
-];
-
+// Production: All data starts empty.
+// Tasks arrive via Shopify webhook → DynamoDB → syncCloudTasks()
+// Technicians register via /register or are added by admin.
 export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
-      technicians: initialTechnicians,
-      tasks: initialTasks,
-      requirements: initialRequirements,
-      feedbacks: initialFeedbacks,
-      notifications: initialNotifications,
-      auditLogs: initialAuditLogs,
-      materials: initialMaterials,
-      whatsappMessages: initialWhatsappMessages,
+      technicians: [],
+      tasks: [],
+      requirements: [],
+      feedbacks: [],
+      notifications: [],
+      auditLogs: [],
+      materials: [],
+      whatsappMessages: [],
       holidays: [],
       leaves: [],
       errorLogs: [],
@@ -784,73 +309,6 @@ export const useAppStore = create<AppState>()(
         set((state) => ({ whatsappMessages: [...state.whatsappMessages, newMsg] }));
       },
 
-      simulateShopifyWebhook: () => {
-        const orderId = `SHOP-${Math.floor(Math.random() * 10000)}`;
-        const newTask: Task = {
-          id: generateId(),
-          title: `Shopify Booking - ${orderId}`,
-          description: 'AC Servicing and Filter Replacement',
-          clientName: 'Rahul Verma',
-          clientEmail: 'rahul.v@email.com',
-          clientPhone: '+91 98765 00001',
-          location: {
-            address: '101, Horizon Towers',
-            city: 'Mumbai',
-            pinCode: '400050',
-            lat: 19.054,
-            lng: 72.840,
-          },
-          category: 'AC Repair',
-          priority: 'medium',
-          status: 'new',
-          scheduledDate: new Date(Date.now() + 86400000).toISOString().split('T')[0],
-          scheduledTime: '10:00',
-          estimatedDuration: 60,
-          assignedTechnicianId: '',
-          timeline: [{ status: 'new', timestamp: new Date().toISOString() }],
-          materials: [],
-          timeExtensions: [],
-          shopifyOrderId: orderId,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-        
-        set((state) => {
-          const newNotif: Notification = {
-            id: generateId(),
-            type: 'task',
-            title: 'New Shopify Booking',
-            message: `Order ${orderId} received for AC Repair.`,
-            read: false,
-            createdAt: new Date().toISOString(),
-          };
-          return { 
-            tasks: [newTask, ...state.tasks],
-            notifications: [newNotif, ...state.notifications]
-          };
-        });
-
-        // Also try to persist to cloud (fire-and-forget)
-        import('../services/amplifyDataService').then(({ createCloudTask }) => {
-          createCloudTask({
-            title: newTask.title,
-            description: newTask.description,
-            category: newTask.category,
-            priority: newTask.priority,
-            status: 'new',
-            shopifyOrderId: orderId,
-            clientName: newTask.clientName,
-            clientPhone: newTask.clientPhone,
-            clientEmail: newTask.clientEmail || '',
-            address: newTask.location.address,
-            city: newTask.location.city || '',
-            pinCode: newTask.location.pinCode || '',
-            zone: 'Unassigned',
-            scheduledTimestamp: newTask.scheduledDate,
-          }).catch(console.error);
-        }).catch(() => {});
-      },
-
       syncCloudTasks: async () => {
         try {
           const { fetchCloudTasks } = await import('../services/amplifyDataService');
@@ -915,6 +373,6 @@ export const useAppStore = create<AppState>()(
         set({ errorLogs: [] });
       },
     }),
-    { name: 'fsm-app-state' }
+    { name: 'fsm-app-state', version: 3 }
   )
 );

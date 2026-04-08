@@ -14,9 +14,14 @@ try {
   // Initialize the data client for cloud DB operations
   const { initAmplifyDataClient } = await import('./services/amplifyDataService')
   await initAmplifyDataClient()
+
+  // Initialize auth
+  const { initAuth } = await import('./services/authService')
+  await initAuth()
 } catch (e) {
   console.warn('[Amplify] amplify_outputs.json not found or Amplify not configured. Running in local-only mode.')
 }
+
 import { useAppStore, useAuthStore } from './stores'
 
 window.addEventListener('error', (event) => {

@@ -97,8 +97,8 @@ export default function ProfilePage() {
           <CardContent className="flex flex-col items-center space-y-4">
             <div className="relative">
               <Avatar className="h-32 w-32">
-                <AvatarImage src={uploadedFiles.profilePhoto.url || user?.profilePhoto || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face"} />
-                <AvatarFallback className="text-3xl">AD</AvatarFallback>
+                <AvatarImage src={uploadedFiles.profilePhoto.url || user?.profilePhoto} />
+                <AvatarFallback className="text-3xl">{user?.name?.charAt(0) || 'U'}</AvatarFallback>
               </Avatar>
               {isEditing && (
                 <Button 

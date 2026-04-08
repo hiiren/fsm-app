@@ -24,11 +24,20 @@ import TechnicianMessagesPage from './pages/technician/Messages'
 import TechnicianProfilePage from './pages/technician/Profile'
 import TechnicianSettingsPage from './pages/technician/Settings'
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useAuthStore()
+function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode; allowedRoles?: string[] }) {
+  const { isAuthenticated, user } = useAuthStore()
   
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />
+  }
+
+  // Role-based access control
+  if (allowedRoles && user && !allowedRoles.includes(user.role)) {
+    // Redirect to correct panel based on role
+    if (user.role === 'technician') {
+      return <Navigate to="/technician" replace />
+    }
+    return <Navigate to="/admin" replace />
   }
   
   return <>{children}</>
@@ -44,7 +53,7 @@ function App() {
         <Route
           path="/admin"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={['admin', 'super_admin', 'operations_admin', 'finance_admin']}>
               <AdminLayout />
             </ProtectedRoute>
           }
@@ -67,7 +76,7 @@ function App() {
         <Route
           path="/technician"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={['technician']}>
               <TechnicianLayout />
             </ProtectedRoute>
           }
