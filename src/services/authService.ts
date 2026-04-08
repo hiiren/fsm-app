@@ -162,7 +162,7 @@ export async function cognitoSignIn(
     }
 
     // Handle forced password change (admin-created users with temporary password)
-    if (result.nextStep?.signInStep === 'CONFIRM_SIGN_IN_WITH_NEW_PASSWORD') {
+    if (result.nextStep?.signInStep === 'CONFIRM_SIGN_IN_WITH_NEW_PASSWORD_REQUIRED') {
       return {
         success: false,
         message: 'You must set a new password.',
