@@ -4,8 +4,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useAuthStore } from '@/stores'
-import { Eye, EyeOff, Lock, Mail, AlertCircle, Shield, Wrench, ChevronRight, Loader2 } from 'lucide-react'
-import { cognitoSignIn, fetchCurrentUser } from '@/services/authService'
+import { Eye, EyeOff, Lock, Mail, AlertCircle, Shield, Wrench, ChevronRight, Loader2, KeyRound } from 'lucide-react'
+import { cognitoSignIn, cognitoConfirmNewPassword, fetchCurrentUser } from '@/services/authService'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -14,6 +14,9 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [selectedRole, setSelectedRole] = useState<'admin' | 'technician' | null>(null)
+  const [needsNewPassword, setNeedsNewPassword] = useState(false)
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmNewPassword, setConfirmNewPassword] = useState('')
   const { setUser, isAuthenticated } = useAuthStore()
   const navigate = useNavigate()
 
@@ -25,6 +28,18 @@ export default function LoginPage() {
     }
   }, [isAuthenticated, navigate])
 
+  const completeLogin = (userInfo: { userId: string; email: string; role: any; name: string }) => {
+    setUser({
+      id: userInfo.userId,
+      email: userInfo.email,
+      password: '',
+      role: userInfo.role,
+      name: userInfo.name,
+      createdAt: new Date().toISOString(),
+    })
+    navigate(userInfo.role === 'technician' ? '/technician' : '/admin')
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
@@ -34,29 +49,55 @@ export default function LoginPage() {
       const result = await cognitoSignIn(email, password)
 
       if (result.success) {
-        // Fetch full user info from Cognito
         const userInfo = await fetchCurrentUser()
         if (userInfo) {
-          setUser({
-            id: userInfo.userId,
-            email: userInfo.email,
-            password: '', // never store password
-            role: userInfo.role,
-            name: userInfo.name,
-            createdAt: new Date().toISOString(),
-          })
-          navigate(userInfo.role === 'technician' ? '/technician' : '/admin')
+          completeLogin(userInfo)
         } else {
           setError('Unable to fetch user profile. Please try again.')
         }
+      } else if (result.needsNewPassword) {
+        setNeedsNewPassword(true)
       } else if (result.needsConfirmation) {
-        // Redirect to register with verification step
         navigate('/register', { state: { email, needsVerification: true } })
       } else {
         setError(result.message)
       }
     } catch (err: any) {
       setError('An unexpected error occurred. Please try again.')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleSetNewPassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+
+    if (newPassword.length < 8) {
+      setError('Password must be at least 8 characters.')
+      return
+    }
+    if (newPassword !== confirmNewPassword) {
+      setError('Passwords do not match.')
+      return
+    }
+
+    setIsLoading(true)
+    try {
+      const result = await cognitoConfirmNewPassword(newPassword)
+      if (result.success) {
+        const userInfo = await fetchCurrentUser()
+        if (userInfo) {
+          completeLogin(userInfo)
+        } else {
+          setError('Password set but unable to fetch profile. Please sign in again.')
+          setNeedsNewPassword(false)
+        }
+      } else {
+        setError(result.message)
+      }
+    } catch {
+      setError('Failed to set new password. Please try again.')
     } finally {
       setIsLoading(false)
     }
@@ -85,7 +126,7 @@ export default function LoginPage() {
         </div>
 
         {/* Role Selection Cards (onboarding feel) */}
-        {!selectedRole && (
+        {!selectedRole && !needsNewPassword && (
           <div className="space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <p className="text-center text-sm text-slate-400 mb-4">Select your role to continue</p>
             
@@ -119,8 +160,79 @@ export default function LoginPage() {
           </div>
         )}
 
+        {/* Set New Password Form — shown after first login with temporary password */}
+        {needsNewPassword && (
+          <Card className="border-slate-700/50 bg-slate-900/60 backdrop-blur-xl shadow-2xl shadow-black/20 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <CardHeader className="text-center space-y-2 pb-4">
+              <div className="mx-auto w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center">
+                <KeyRound className="h-5 w-5 text-amber-400" />
+              </div>
+              <div>
+                <CardTitle className="text-xl font-bold text-white">Set New Password</CardTitle>
+                <CardDescription className="text-slate-400 text-sm">
+                  Your temporary password must be changed before continuing
+                </CardDescription>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSetNewPassword} className="space-y-4">
+                {error && (
+                  <div className="flex items-start gap-2 rounded-lg bg-red-500/10 border border-red-500/20 p-3 text-red-400 text-sm">
+                    <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                    <span>{error}</span>
+                  </div>
+                )}
+
+                <div className="space-y-3">
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                    <Input
+                      type="password"
+                      placeholder="New password"
+                      className="pl-10 h-11 bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-500 focus:border-amber-500/50 focus:ring-amber-500/20"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      required
+                      autoFocus
+                    />
+                  </div>
+
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                    <Input
+                      type="password"
+                      placeholder="Confirm new password"
+                      className="pl-10 h-11 bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-500 focus:border-amber-500/50 focus:ring-amber-500/20"
+                      value={confirmNewPassword}
+                      onChange={(e) => setConfirmNewPassword(e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <p className="text-[11px] text-slate-500 ml-1">Must be at least 8 characters with uppercase, lowercase, number, and symbol</p>
+
+                <Button 
+                  type="submit" 
+                  className="w-full h-11 font-medium bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 shadow-lg shadow-amber-500/20"
+                  disabled={isLoading || !newPassword || !confirmNewPassword}
+                >
+                  {isLoading ? (
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Setting password...
+                    </div>
+                  ) : (
+                    'Set Password & Sign In'
+                  )}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Login Form */}
-        {selectedRole && (
+        {selectedRole && !needsNewPassword && (
           <Card className="border-slate-700/50 bg-slate-900/60 backdrop-blur-xl shadow-2xl shadow-black/20 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <CardHeader className="text-center space-y-2 pb-4">
               <div className="flex items-center justify-center gap-2">
@@ -248,3 +360,4 @@ export default function LoginPage() {
     </div>
   )
 }
+

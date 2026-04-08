@@ -11,6 +11,7 @@ export interface AuthResult {
   success: boolean;
   message: string;
   needsConfirmation?: boolean;
+  needsNewPassword?: boolean;
   userId?: string;
   email?: string;
   role?: UserRole;
@@ -160,6 +161,16 @@ export async function cognitoSignIn(
       };
     }
 
+    // Handle forced password change (admin-created users with temporary password)
+    if (result.nextStep?.signInStep === 'CONFIRM_SIGN_IN_WITH_NEW_PASSWORD') {
+      return {
+        success: false,
+        message: 'You must set a new password.',
+        needsNewPassword: true,
+        email,
+      };
+    }
+
     if (result.isSignedIn) {
       // Fetch user attributes
       const userInfo = await fetchCurrentUser();
@@ -172,10 +183,44 @@ export async function cognitoSignIn(
 
     return {
       success: false,
-      message: 'Sign in requires additional steps.',
+      message: `Sign in requires additional steps: ${result.nextStep?.signInStep || 'unknown'}`,
     };
   } catch (err: any) {
     console.error('[Auth] SignIn error:', err);
+    return {
+      success: false,
+      message: getAuthErrorMessage(err),
+    };
+  }
+}
+
+/**
+ * Complete new password challenge (for admin-created users)
+ */
+export async function cognitoConfirmNewPassword(
+  newPassword: string
+): Promise<AuthResult> {
+  try {
+    const { confirmSignIn } = await import('aws-amplify/auth');
+    const result = await confirmSignIn({
+      challengeResponse: newPassword,
+    });
+
+    if (result.isSignedIn) {
+      const userInfo = await fetchCurrentUser();
+      return {
+        success: true,
+        message: 'Password updated and signed in successfully.',
+        ...userInfo,
+      };
+    }
+
+    return {
+      success: false,
+      message: 'Password update requires additional steps.',
+    };
+  } catch (err: any) {
+    console.error('[Auth] ConfirmNewPassword error:', err);
     return {
       success: false,
       message: getAuthErrorMessage(err),
