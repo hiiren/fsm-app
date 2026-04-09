@@ -39,6 +39,7 @@ export async function fetchCloudTasks(): Promise<any[]> {
 
   try {
     const { data: tasks, errors } = await amplifyClient.models.Task.list({
+      authMode: 'userPool',
       selectionSet: ['id', 'title', 'description', 'clientName', 'clientPhone', 'clientEmail', 'address', 'city', 'pinCode', 'zone', 'category', 'priority', 'status', 'scheduledTimestamp', 'assignedTechnicianId', 'shopifyOrderId', 'createdAt', 'updatedAt']
     });
     if (errors) {
@@ -63,7 +64,7 @@ export async function createCloudTask(taskData: Record<string, any>): Promise<an
   }
 
   try {
-    const { data: newTask, errors } = await amplifyClient.models.Task.create(taskData);
+    const { data: newTask, errors } = await amplifyClient.models.Task.create(taskData, { authMode: 'userPool' });
     if (errors) {
       console.error('[AmplifyData] Errors creating task:', errors);
       return null;
@@ -89,7 +90,7 @@ export async function updateCloudTask(id: string, updates: Record<string, any>):
     const { data: updatedTask, errors } = await amplifyClient.models.Task.update({
       id,
       ...updates,
-    });
+    }, { authMode: 'userPool' });
     if (errors) {
       console.error('[AmplifyData] Errors updating task:', errors);
       return null;
