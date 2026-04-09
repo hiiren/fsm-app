@@ -26,7 +26,8 @@ const schema = a.schema({
       assignedTechnicianId: a.string(),
     })
     .authorization((allow) => [
-      allow.guest(), // allow unauthenticated access for simplicity during dev
+      allow.guest(), // allow unauthenticated access
+      allow.authenticated(), // allow signed-in users (Cognito User Pools)
     ]),
 });
 
