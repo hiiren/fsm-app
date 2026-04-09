@@ -145,6 +145,26 @@ export default function TasksPage() {
   const [dateFilter, setDateFilter] = useState<string>('all')
   const [selectedTask, setSelectedTask] = useState<string | null>(null)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
+
+  const handleAcceptTask = (id: string) => {
+    useAppStore.getState().updateTaskStatus(id, 'accepted', 'Task accepted manually via admin portal');
+    useAppStore.getState().addNotification({ type: 'task', title: 'Task Accepted', message: `Task was accepted manually.` });
+  }
+
+  const handleDeclineClick = (id: string) => {
+    useAppStore.getState().updateTaskStatus(id, 'pending', 'Assignment declined/revoked via admin portal');
+    useAppStore.getState().updateTask(id, { assignedTechnicianId: undefined });
+    useAppStore.getState().addNotification({ type: 'task', title: 'Task Declined', message: `Task was unassigned manually.` });
+  }
+
+  const handleStartTask = (id: string) => {
+    useAppStore.getState().updateTaskStatus(id, 'in_progress', 'Task started via admin portal');
+  }
+
+  const handleCompleteClick = (id: string) => {
+    useAppStore.getState().updateTaskStatus(id, 'completed', 'Task completed via admin portal');
+  }
+
   const [newTask, setNewTask] = useState({
     title: '',
     description: '',
@@ -682,12 +702,41 @@ export default function TasksPage() {
               </Tabs>
 
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="flex-1">
-                  <MessageSquare className="mr-1 h-4 w-4" /> Message
-                </Button>
-                <Button size="sm" className="flex-1">
-                  <FileText className="mr-1 h-4 w-4" /> Documents
-                </Button>
+                {(selectedTaskData.status === 'pending' || selectedTaskData.status === 'assigned' || selectedTaskData.status === 'new') && (
+                  <>
+                    <Button className="flex-1" onClick={() => handleAcceptTask(selectedTaskData.id)}>
+                      <CheckCircle2 className="mr-2 h-4 w-4" /> Accept Task
+                    </Button>
+                    <Button variant="outline" className="text-destructive flex-1" onClick={() => handleDeclineClick(selectedTaskData.id)}>
+                      <X className="mr-2 h-4 w-4" /> Decline Task
+                    </Button>
+                  </>
+                )}
+                {selectedTaskData.status === 'accepted' && (
+                  <>
+                    <Button className="flex-1" onClick={() => handleStartTask(selectedTaskData.id)}>
+                      <Play className="mr-2 h-4 w-4" /> Start Work
+                    </Button>
+                    <Button variant="outline" className="flex-1">
+                      <MessageSquare className="mr-2 h-4 w-4" /> Message
+                    </Button>
+                  </>
+                )}
+                {selectedTaskData.status === 'in_progress' && (
+                  <Button className="flex-1" onClick={() => handleCompleteClick(selectedTaskData.id)}>
+                    <CheckCircle2 className="mr-2 h-4 w-4" /> Complete Task
+                  </Button>
+                )}
+                {(selectedTaskData.status === 'completed' || selectedTaskData.status === 'cancelled' || selectedTaskData.status === 'overdue') && (
+                  <div className="flex gap-2 w-full">
+                    <Button variant="outline" size="sm" className="flex-1">
+                      <MessageSquare className="mr-1 h-4 w-4" /> Message
+                    </Button>
+                    <Button size="sm" className="flex-1">
+                      <FileText className="mr-1 h-4 w-4" /> Documents
+                    </Button>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
