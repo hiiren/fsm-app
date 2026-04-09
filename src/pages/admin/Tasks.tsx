@@ -59,11 +59,11 @@ const categories = ['Electrical', 'Plumbing', 'AC Repair', 'Appliance Repair', '
 const priorities: TaskPriority[] = ['low', 'medium', 'high', 'urgent']
 const statuses: TaskStatus[] = ['pending', 'accepted', 'in_progress', 'completed', 'cancelled', 'overdue']
 
-const statusColumns: { status: TaskStatus; label: string; color: string }[] = [
-  { status: 'pending', label: 'Pending', color: 'text-amber-500' },
-  { status: 'accepted', label: 'Accepted', color: 'text-blue-500' },
-  { status: 'in_progress', label: 'In Progress', color: 'text-purple-500' },
-  { status: 'completed', label: 'Completed', color: 'text-emerald-500' },
+const statusColumns: { id: string; label: string; color: string; matchStatuses: string[] }[] = [
+  { id: 'pending', label: 'Pending / New', color: 'text-amber-500', matchStatuses: ['pending', 'new'] },
+  { id: 'assigned', label: 'Assigned / Accepted', color: 'text-blue-500', matchStatuses: ['assigned', 'accepted'] },
+  { id: 'in_progress', label: 'In Progress', color: 'text-purple-500', matchStatuses: ['in_progress'] },
+  { id: 'completed', label: 'Completed', color: 'text-emerald-500', matchStatuses: ['completed'] },
 ]
 
 interface TaskCardProps {
@@ -100,8 +100,8 @@ function TaskCard({ task, onClick, onCancelTask }: TaskCardProps) {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={onClick}>View Details</DropdownMenuItem>
-            <DropdownMenuItem>Reassign</DropdownMenuItem>
-            <DropdownMenuItem>Add Note</DropdownMenuItem>
+            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onClick(); }}>Reassign</DropdownMenuItem>
+            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onClick(); }}>Add Note</DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem className="text-destructive" onClick={() => onCancelTask(task.id)}>Cancel Task</DropdownMenuItem>
           </DropdownMenuContent>
@@ -234,7 +234,7 @@ export default function TasksPage() {
   const selectedTaskData = selectedTask ? tasks.find(t => t.id === selectedTask) : null
   const selectedTech = selectedTaskData ? technicians.find(t => t.id === selectedTaskData.assignedTechnicianId) : null
 
-  const getTasksByStatus = (status: TaskStatus) => filteredTasks.filter(t => t.status === status)
+  const getTasksByColumn = (matchStatuses: string[]) => filteredTasks.filter(t => matchStatuses.includes(t.status))
 
   const todayTasks = tasks.filter(t => t.scheduledDate === new Date().toISOString().split('T')[0])
   const pendingCount = tasks.filter(t => t.status === 'pending').length
@@ -499,19 +499,19 @@ export default function TasksPage() {
           <div className="flex-1">
             <div className="grid gap-4 lg:grid-cols-4">
               {statusColumns.map((col) => (
-                <div key={col.status} className="space-y-4">
+                <div key={col.id} className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <div className={cn('h-2 w-2 rounded-full', col.color.replace('text-', 'bg-'))} />
                       <h3 className="font-semibold">{col.label}</h3>
                     </div>
-                    <Badge variant="secondary">{getTasksByStatus(col.status).length}</Badge>
+                    <Badge variant="secondary">{getTasksByColumn(col.matchStatuses).length}</Badge>
                   </div>
                   <div className="space-y-3">
-                    {getTasksByStatus(col.status).map((task) => (
+                    {getTasksByColumn(col.matchStatuses).map((task) => (
                       <TaskCard key={task.id} task={task} onClick={() => setSelectedTask(task.id)} onCancelTask={handleCancelTask} />
                     ))}
-                    {getTasksByStatus(col.status).length === 0 && (
+                    {getTasksByColumn(col.matchStatuses).length === 0 && (
                       <div className="rounded-lg border border-dashed p-6 text-center">
                         <p className="text-sm text-muted-foreground">No tasks</p>
                       </div>

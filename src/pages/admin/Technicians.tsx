@@ -448,8 +448,8 @@ export default function TechniciansPage() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={() => setSelectedTechnician(tech.id)}><Eye className="mr-2 h-4 w-4" /> View Details</DropdownMenuItem>
-                        <DropdownMenuItem><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Deactivate</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => alert('Edit mode coming soon.')}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>
+                        <DropdownMenuItem className="text-destructive" onClick={() => alert('Deactivation requires admin override.')}><Trash2 className="mr-2 h-4 w-4" /> Deactivate</DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
@@ -676,8 +676,8 @@ export default function TechniciansPage() {
               )}
 
               <div className="flex gap-2 mt-4">
-                <Button variant="outline" className="flex-1">Edit Profile</Button>
-                <Button className="flex-1">View Schedule</Button>
+                <Button variant="outline" className="flex-1" onClick={() => alert('Edit profile functionality coming soon.')}>Edit Profile</Button>
+                <Button className="flex-1" onClick={() => alert(`View Schedule coming soon for ${selectedTech.fullName}.`)}>View Schedule</Button>
               </div>
             </CardContent>
           </Card>

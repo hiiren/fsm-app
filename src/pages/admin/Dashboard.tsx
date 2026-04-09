@@ -131,7 +131,7 @@ export default function DashboardPage() {
   })
 
   const activeTechnicians = technicians.filter(t => t.status === 'active').length
-  const pendingTasks = tasks.filter(t => t.status === 'pending' || t.status === 'accepted').length
+  const pendingTasks = tasks.filter(t => ['pending', 'new', 'assigned', 'accepted'].includes(t.status)).length
   const inProgressTasks = tasks.filter(t => t.status === 'in_progress').length
   const completedToday = tasks.filter(t => t.status === 'completed').length
   const overdueTasks = tasks.filter(t => t.status === 'overdue').length
@@ -686,7 +686,7 @@ export default function DashboardPage() {
             <Button variant="ghost" size="sm" onClick={() => navigate('/admin/tasks')}>View All <ArrowRight className="ml-1 h-4 w-4" /></Button>
           </CardHeader>
           <CardContent className="space-y-4">
-            {tasks.filter(t => t.status === 'in_progress' || t.status === 'accepted').slice(0, 3).map((task) => {
+            {tasks.filter(t => t.status === 'in_progress' || t.status === 'accepted' || t.status === 'assigned').slice(0, 3).map((task) => {
               const technician = technicians.find(t => t.id === task.assignedTechnicianId)
               return (
                 <div key={task.id} className="flex items-start gap-4 rounded-lg border p-4 transition-colors hover:bg-accent/50 cursor-pointer" onClick={() => navigate('/admin/tasks')}>
