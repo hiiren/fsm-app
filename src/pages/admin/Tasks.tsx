@@ -372,7 +372,7 @@ export default function TasksPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-5">
-        <Card className="cursor-pointer hover:border-primary/50" onClick={() => setPriorityFilter('pending')}>
+        <Card className="cursor-pointer hover:border-primary/50" onClick={() => { setStatusFilter('pending'); setDateFilter('all'); setPriorityFilter('all'); }}>
           <CardContent className="flex items-center gap-4 p-4">
             <div className="rounded-lg bg-amber-500/10 p-2">
               <Clock className="h-5 w-5 text-amber-500" />
@@ -383,7 +383,7 @@ export default function TasksPage() {
             </div>
           </CardContent>
         </Card>
-        <Card className="cursor-pointer hover:border-primary/50" onClick={() => setPriorityFilter('in_progress')}>
+        <Card className="cursor-pointer hover:border-primary/50" onClick={() => { setStatusFilter('in_progress'); setDateFilter('all'); setPriorityFilter('all'); }}>
           <CardContent className="flex items-center gap-4 p-4">
             <div className="rounded-lg bg-purple-500/10 p-2">
               <Play className="h-5 w-5 text-purple-500" />
@@ -394,7 +394,7 @@ export default function TasksPage() {
             </div>
           </CardContent>
         </Card>
-        <Card className="cursor-pointer hover:border-primary/50" onClick={() => setPriorityFilter('completed')}>
+        <Card className="cursor-pointer hover:border-primary/50" onClick={() => { setStatusFilter('completed'); setDateFilter('all'); setPriorityFilter('all'); }}>
           <CardContent className="flex items-center gap-4 p-4">
             <div className="rounded-lg bg-emerald-500/10 p-2">
               <CheckCircle2 className="h-5 w-5 text-emerald-500" />
@@ -405,7 +405,7 @@ export default function TasksPage() {
             </div>
           </CardContent>
         </Card>
-        <Card className="cursor-pointer hover:border-primary/50" onClick={() => setPriorityFilter('overdue')}>
+        <Card className="cursor-pointer hover:border-primary/50" onClick={() => { setStatusFilter('overdue'); setDateFilter('all'); setPriorityFilter('all'); }}>
           <CardContent className="flex items-center gap-4 p-4">
             <div className="rounded-lg bg-red-500/10 p-2">
               <AlertCircle className="h-5 w-5 text-red-500" />
@@ -416,7 +416,7 @@ export default function TasksPage() {
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="cursor-pointer hover:border-primary/50" onClick={() => { setDateFilter('today'); setStatusFilter('all'); setPriorityFilter('all'); }}>
           <CardContent className="flex items-center gap-4 p-4">
             <div className="rounded-lg bg-blue-500/10 p-2">
               <ClipboardList className="h-5 w-5 text-blue-500" />
