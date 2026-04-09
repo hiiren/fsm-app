@@ -55,7 +55,7 @@ const skills = ['Electrical', 'Plumbing', 'AC Repair', 'Appliance Repair', 'Gene
 const zones = ['North Mumbai', 'South Mumbai', 'Central Mumbai', 'West Mumbai', 'East Mumbai']
 
 export default function TechniciansPage() {
-  const { technicians, tasks, feedbacks, updateTechnician, addNotification } = useAppStore()
+  const { technicians, tasks, feedbacks, updateTechnician, addTechnician, addNotification } = useAppStore()
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [skillFilter, setSkillFilter] = useState<string>('all')
@@ -135,6 +135,53 @@ export default function TechniciansPage() {
       });
     }
   }
+
+  const handleAddTechnician = () => {
+    if (!newTech.fullName || !newTech.mobile) {
+      addNotification({
+        type: 'alert',
+        title: 'Missing Details',
+        message: 'Please provide at least full name and mobile number.',
+      });
+      return;
+    }
+    
+    addTechnician({
+      userId: `user-${Date.now()}`,
+      fullName: newTech.fullName,
+      mobile: newTech.mobile,
+      email: newTech.email,
+      skills: newTech.skills,
+      serviceZone: newTech.serviceZone || 'Unassigned',
+      status: 'pending_verification',
+      rating: 0,
+      documents: {
+        verificationStatus: 'pending'
+      },
+      stats: {
+        totalTasks: 0,
+        completedTasks: 0,
+        avgCompletionTime: 0,
+        onTimeRate: 0
+      }
+    });
+
+    addNotification({
+      type: 'document',
+      title: 'Technician Added',
+      message: `${newTech.fullName} has been added and pending verification.`,
+    });
+
+    setNewTech({
+      fullName: '',
+      mobile: '',
+      email: '',
+      skills: [],
+      serviceZone: '',
+    });
+    setShowAddDialog(false);
+  };
+
 
   const handleViewDocument = (title: string, fileName: string) => {
     setViewDoc({
@@ -225,7 +272,7 @@ export default function TechniciansPage() {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setShowAddDialog(false)}>Cancel</Button>
-              <Button onClick={() => setShowAddDialog(false)}>Send Invitation</Button>
+              <Button onClick={handleAddTechnician}>Send Invitation</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

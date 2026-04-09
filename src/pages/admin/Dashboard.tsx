@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -106,7 +106,14 @@ function StatCard({ title, value, change, icon: Icon, iconColor = 'text-primary'
 
 export default function DashboardPage() {
   const navigate = useNavigate()
-  const { tasks, technicians, requirements, notifications, addTask } = useAppStore()
+  const { tasks, technicians, requirements, notifications, addTask, syncCloudTasks } = useAppStore()
+  
+  useEffect(() => {
+    syncCloudTasks();
+    const interval = setInterval(syncCloudTasks, 30000); // 30 seconds
+    return () => clearInterval(interval);
+  }, [syncCloudTasks]);
+
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [showDownloadDialog, setShowDownloadDialog] = useState(false)
   const [downloadFormat, setDownloadFormat] = useState('pdf')
@@ -136,7 +143,7 @@ export default function DashboardPage() {
     .slice(0, 3)
 
   const handleCreateTask = () => {
-    if (!newTask.title || !newTask.clientName || !newTask.assignedTechnicianId) {
+    if (!newTask.title || !newTask.clientName) {
       alert('Please fill in all required fields')
       return
     }
@@ -392,7 +399,7 @@ export default function DashboardPage() {
                     </Select>
                   </div>
                   <div className="grid gap-2">
-                    <label className="text-sm font-medium">Technician *</label>
+                    <label className="text-sm font-medium">Technician</label>
                     <Select onValueChange={(v: string) => setNewTask({ ...newTask, assignedTechnicianId: v })}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select" />
@@ -478,7 +485,7 @@ export default function DashboardPage() {
           <CardContent>
             {weeklyData.length > 0 ? (
             <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
                 <AreaChart data={weeklyData}>
                   <defs>
                     <linearGradient id="colorTasks" x1="0" y1="0" x2="0" y2="1">
@@ -527,7 +534,7 @@ export default function DashboardPage() {
           <CardContent>
             {taskStatusData.length > 0 ? (
             <div className="h-[200px]">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
                 <PieChart>
                   <Pie
                     data={taskStatusData}

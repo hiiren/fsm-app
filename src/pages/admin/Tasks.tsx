@@ -159,7 +159,7 @@ export default function TasksPage() {
   })
 
   const handleCreateTask = () => {
-    if (!newTask.title || !newTask.clientName || !newTask.assignedTechnicianId) return
+    if (!newTask.title || !newTask.clientName) return
     
     addTask({
       title: newTask.title,
@@ -365,7 +365,7 @@ export default function TasksPage() {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setShowCreateDialog(false)}>Cancel</Button>
-              <Button onClick={handleCreateTask} disabled={!newTask.title || !newTask.clientName || !newTask.assignedTechnicianId}>Create & Assign</Button>
+              <Button onClick={handleCreateTask} disabled={!newTask.title || !newTask.clientName}>Create & Assign</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

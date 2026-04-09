@@ -398,7 +398,7 @@ export default function AnalyticsPage() {
           <CardContent>
             {monthlyData.length > 0 ? (
             <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
                 <AreaChart data={monthlyData}>
                   <defs>
                     <linearGradient id="colorTasks" x1="0" y1="0" x2="0" y2="1">
@@ -434,7 +434,7 @@ export default function AnalyticsPage() {
           <CardContent>
             {monthlyData.length > 0 ? (
             <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
                 <BarChart data={monthlyData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
                   <XAxis dataKey="month" stroke="#94A3B8" fontSize={12} />
@@ -461,7 +461,7 @@ export default function AnalyticsPage() {
           <CardContent>
             {categoryData.length > 0 ? (
             <div className="h-[200px]">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
                 <PieChart>
                   <Pie data={categoryData} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={5} dataKey="value">
                     {categoryData.map((entry, index) => (
@@ -521,7 +521,7 @@ export default function AnalyticsPage() {
           <CardContent>
             {weeklyPerformance.length > 0 ? (
             <div className="h-[200px]">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
                 <BarChart data={weeklyPerformance}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
                   <XAxis dataKey="day" stroke="#94A3B8" fontSize={10} />
